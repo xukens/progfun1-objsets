@@ -42,7 +42,7 @@ abstract class TweetSet {
    * and be implemented in the subclasses?
    */
     def filter(p: Tweet => Boolean): TweetSet
-  
+
   /**
    * This is a helper method for `filter` that propagetes the accumulated tweets.
    */
@@ -55,7 +55,7 @@ abstract class TweetSet {
    * and be implemented in the subclasses?
    */
     def union(that: TweetSet): TweetSet
-  
+
   /**
    * Returns the tweet from this set which has the greatest retweet count.
    *
@@ -66,7 +66,7 @@ abstract class TweetSet {
    * and be implemented in the subclasses?
    */
     def mostRetweeted: Tweet
-  
+
   /**
    * Returns a list containing all tweets of this set, sorted by retweet count
    * in descending order. In other words, the head of the resulting list should
@@ -77,7 +77,7 @@ abstract class TweetSet {
    * and be implemented in the subclasses?
    */
     def descendingByRetweet: TweetList
-  
+
   /**
    * The following methods are already implemented
    */
@@ -104,10 +104,12 @@ abstract class TweetSet {
    * This method takes a function and applies it to every element in the set.
    */
   def foreach(f: Tweet => Unit): Unit
+
+  def empty: Boolean
 }
 
 class Empty extends TweetSet {
-
+  def empty: Boolean = true
   def filterAcc(p: Tweet => Boolean, acc: TweetSet): TweetSet = acc
 
   def mostRetweeted: Tweet = throw new NoSuchElementException
@@ -158,12 +160,21 @@ class NonEmpty(elem: Tweet, left: TweetSet, right: TweetSet) extends TweetSet {
     }
 
   def mostRetweeted: Tweet = {
-    var maxTwits = elem
-    foreach(t=>if(t.retweets>maxTwits.retweets)maxTwits=t)
-    maxTwits
-  }
+    lazy val leftMost = left.mostRetweeted
+    lazy val rightMost = right.mostRetweeted
 
-  def union(that: TweetSet): TweetSet = that.union(left).union(right).incl(elem)
+    if( !left.empty && leftMost.retweets > elem.retweets )
+      if( !right.empty && rightMost.retweets > leftMost.retweets )
+        rightMost
+      else
+        leftMost
+    else if( !right.empty && rightMost.retweets > elem.retweets )
+      rightMost
+    else
+      elem
+  }
+  def empty: Boolean = false
+  def union(that: TweetSet): TweetSet = right.union(left.union(that)).incl(elem)
 
   /**
    * The following methods are already implemented
@@ -227,14 +238,15 @@ object GoogleVsApple {
   val google = List("android", "Android", "galaxy", "Galaxy", "nexus", "Nexus")
   val apple = List("ios", "iOS", "iphone", "iPhone", "ipad", "iPad")
 
-    lazy val googleTweets: TweetSet = ???
-  lazy val appleTweets: TweetSet = ???
-  
+  lazy val googleTweets: TweetSet = TweetReader.allTweets.filter(tw => google.exists(e => tw.text.contains(e)))
+
+  lazy val appleTweets: TweetSet = TweetReader.allTweets.filter(tw => apple.exists(e => tw.text.contains(e)))
+
   /**
    * A list of all tweets mentioning a keyword from either apple or google,
    * sorted by the number of retweets.
    */
-     lazy val trending: TweetList = ???
+  lazy val trending: TweetList = (googleTweets.union(appleTweets)).descendingByRetweet
   }
 
 object Main extends App {
